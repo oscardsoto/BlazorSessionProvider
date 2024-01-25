@@ -17,8 +17,8 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v1
       with:
-        name: icon.png
-        path: icon.png
+        name: icon
+        path: ./icon.png
     - name: Build
       run: dotnet build -c Release
     - name: Test
