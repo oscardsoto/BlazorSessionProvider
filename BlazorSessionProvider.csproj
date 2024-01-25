@@ -9,10 +9,10 @@
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
 
-    <Author></Author>
-    <Description>A long description to explain the package</Description>
-    <PackageProjectUrl>https://www.meziantou.net</PackageProjectUrl>
-    <PackageTags>sample, library</PackageTags>
+    <Author>OscarSoto</Author>
+    <Description>A Blazor Server library that handle sessions inside the application (not in the browser)</Description>
+    <PackageProjectUrl>https://github.com/oscardsoto/BlazorSessionProvider</PackageProjectUrl>
+    <PackageTags>blazor, session, sessions, server, provider, local, storage</PackageTags>
 
     <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
