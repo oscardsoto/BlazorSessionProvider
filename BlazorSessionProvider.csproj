@@ -2,6 +2,14 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
+    <PackageId>BlazorSessionProvider</PackageId>
+    <Version>1.0.1</Version>
+    <Authors>Oscar Soto</Authors>
+    <Description>A Blazor Server library that handle sessions inside the application (not in the browser)</Description>
+    <PackageReleaseNotes>Released v1.0.1</PackageReleaseNotes>
+    <PackageProjectUrl>https://github.com/oscardsoto/BlazorSessionProvider</PackageProjectUrl>
+
+
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 
@@ -9,10 +17,7 @@
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
 
-    <Author>OscarSoto</Author>
-    <Description>A Blazor Server library that handle sessions inside the application (not in the browser)</Description>
-    <PackageProjectUrl>https://github.com/oscardsoto/BlazorSessionProvider</PackageProjectUrl>
-    <PackageTags>blazor, session, sessions, server, provider, local, storage</PackageTags>
+    <PackageTags>blazor, session, sessions, server, provider, local, storage, users, authentication, handling, management, development</PackageTags>
 
     <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
