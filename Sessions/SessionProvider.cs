@@ -111,7 +111,16 @@ namespace BlazorSessionProvider.Sessions
 
             _sessionError = false;
             var sess = _keeper.GetSessionData(id);
-            return removeIt ? (T)sess.Pull(key) : (T)sess.Get(key);
+            if (!sess.Exists(key))
+                throw new KeyNotFoundException($"The session \"{key}\" does not exist");
+
+            // If the object is null, and -T- is nullable, is fine
+            object objInSess = removeIt ? sess.Pull(key) : sess.Get(key);
+            if ((objInSess is T) || (objInSess == null && default(T) == null))
+                return (T)objInSess;
+
+            // Otherwise, it has to be an error
+            throw new InvalidCastException($"Cannot get \"{key}\" correctly. Expected: {typeof(T).Name}. Received: {objInSess?.GetType().Name ?? "Null"}");
         }
 
         /// <summary>
