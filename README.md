@@ -9,7 +9,7 @@ BlazorSessionProvider is a Blazor Server library that handle sessions inside the
 ## Quick Install
 1. Install the package via NuGet:
   ```console
-  dotnet add package BlazorSessionProvider --version 1.0.0
+  dotnet add package BlazorSessionProvider --version 1.0.1
   ```
 
 2. Add the next code line in your Blazor project, on `Program.cs`:
