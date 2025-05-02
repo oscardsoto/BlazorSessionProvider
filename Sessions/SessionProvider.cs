@@ -10,7 +10,7 @@ namespace BlazorSessionProvider.Sessions
     public class SessionProvider : ISessionProvider
     {
         private readonly ISessionKeeper _keeper;
-        private readonly IJSRuntime _jsRuntime;
+        private readonly ISessionBridge _bridge;
         private readonly NavigationManager _navManager;
         private readonly SessionProviderConfig _config;
         private bool _sessionError = false;
@@ -23,24 +23,13 @@ namespace BlazorSessionProvider.Sessions
         /// <summary>
         /// Scoped that provide the session for the user
         /// </summary>
-        public SessionProvider(ISessionKeeper keeper, IJSRuntime jsRuntime, NavigationManager navigation, IOptions<SessionProviderConfig> options)
+        public SessionProvider(ISessionKeeper keeper, ISessionBridge bridge, NavigationManager navigation, IOptions<SessionProviderConfig> options)
         {
             _keeper     = keeper;
-            _jsRuntime  = jsRuntime;
+            _bridge     = bridge;
             _navManager = navigation;
             _config     = options.Value;
         }
-
-        private async Task<string> SetNewSessionId()
-        {
-            string sessionId = Guid.NewGuid().ToString();
-            await _jsRuntime.InvokeVoidAsync("localStorage.setItem", _config.KeyId, sessionId);
-            return sessionId;
-        }
-
-        private async Task<string> GetSessionId() => await _jsRuntime.InvokeAsync<string>("localStorage.getItem", _config.KeyId);
-
-        private async void RemoveSessionId() => await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", _config.KeyId);
 
         
         /// <summary>
@@ -49,24 +38,24 @@ namespace BlazorSessionProvider.Sessions
         /// <param name="newSession">First Key/Value for the new session to be registered. If so, it will trigger the "OnSessionStart" event (if any)</param>
         public async void CreateNewSession(KeyValuePair<string, object>? newSession = null)
         {
-            string sessionId = await SetNewSessionId();
+            string sessionId = await _bridge.SetNewSessionId();
             _keeper.AddSession(sessionId, _config.TimeDelay);
 
             if (newSession == null)
-                _config.OnSessionStart?.Invoke(new());
+                _config.OnSessionStart?.Invoke(null);
             else
             {
-                _config.OnSessionStart?.Invoke(newSession.Value.Value);
+                _config.OnSessionStart?.Invoke(newSession);
                 _keeper.SetSessionInData(sessionId, newSession.Value.Key, newSession.Value.Value);
             }
         }
 
         /// <summary>
-        /// Async method that returns the Guid if the session exists. If does not exist in the dictionary, return an empty string. If does not exist in "localStorage", return null.
+        /// Async method that returns the Guid if the session exists. If is expired, return an empty string. If does not exist in the bridge or in the keeper, return null.
         /// </summary>
         public async Task<string> HasSession()
         {
-            string id = await GetSessionId();
+            string id = await _bridge.GetSessionId();
             if ((id == null) || !_keeper.HasSessionData(id))
                 return null;
 
@@ -100,7 +89,7 @@ namespace BlazorSessionProvider.Sessions
                 if (!_sessionError)
                 {
                     _sessionError = true;
-                    var _sess = _keeper.GetSessionData(await GetSessionId());
+                    var _sess = _keeper.GetSessionData(await _bridge.GetSessionId());
                     _sess.IgnoreExpired = true;
                     _config.OnSessionExpired?.Invoke(_sess);
                     if (_config.HasExpiredUrl)
@@ -144,7 +133,7 @@ namespace BlazorSessionProvider.Sessions
                 if (!_sessionError)
                 {
                     _sessionError = true;
-                    var _sess = _keeper.GetSessionData(await GetSessionId());
+                    var _sess = _keeper.GetSessionData(await _bridge.GetSessionId());
                     _sess.IgnoreExpired = true;
                     _config.OnSessionExpired?.Invoke(_sess);
                     if (_config.HasExpiredUrl)
@@ -156,7 +145,7 @@ namespace BlazorSessionProvider.Sessions
             _sessionError = false;
             _config.OnSessionEnd.Invoke(_keeper.GetSessionData(id));
             _keeper.RemoveSession(id);
-            RemoveSessionId();
+            await _bridge.RemoveSessionId();
         }
 
         /// <summary>
@@ -182,7 +171,7 @@ namespace BlazorSessionProvider.Sessions
                 if (!_sessionError)
                 {
                     _sessionError = true;
-                    var _sess = _keeper.GetSessionData(await GetSessionId());
+                    var _sess = _keeper.GetSessionData(await _bridge.GetSessionId());
                     _sess.IgnoreExpired = true;
                     _config.OnSessionExpired?.Invoke(_sess);
                     if (_config.HasExpiredUrl)

@@ -9,7 +9,7 @@ BlazorSessionProvider is a Blazor Server library that handle sessions inside the
 ## Quick Install
 1. Install the package via NuGet:
   ```console
-  dotnet add package BlazorSessionProvider --version 1.0.1
+  dotnet add package BlazorSessionProvider --version 1.0.2
   ```
 
 2. Add the next code line in your Blazor project, on `Program.cs`:
@@ -87,7 +87,7 @@ protected override async Task OnAfterRenderAsync(bool firstRender)
 }
 ```
 ## Docs
-For more information, see the Wikia.
+For more information, see the [Wikia](https://github.com/oscardsoto/BlazorSessionProvider/wiki).
 ***
 Thank you so much for using BlazorSessionProvider.
 
