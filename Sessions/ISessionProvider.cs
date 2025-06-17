@@ -11,6 +11,11 @@
         event Action<string, object> SessionDataChanged;
 
         /// <summary>
+        /// Session Id, to access the Keeper
+        /// </summary>
+        string Id { get; set; }
+
+        /// <summary>
         /// Creates a new session with a unique Guid
         /// </summary>
         /// <param name="newSession">First Key/Value for the new session to be registered. If so, it will trigger the "OnSessionStart" event (if any)</param>

@@ -40,7 +40,7 @@ namespace BlazorSessionProvider
 
             Type bridgeType = typeof(B);
             Type sessionBdg = typeof(ISessionBridge);
-            if (!bridgeType.IsAssignableFrom(sessionBdg))
+            if (!sessionBdg.IsAssignableFrom(bridgeType))
                 throw new ArgumentException($"{bridgeType.Name} does not inherit from {sessionBdg.Name}");
 
             services.AddScoped(typeof(ISessionBridge), typeof(B));

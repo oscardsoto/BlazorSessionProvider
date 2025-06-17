@@ -16,6 +16,12 @@ namespace BlazorSessionProvider.Sessions
         private bool _sessionError = false;
 
         /// <summary>
+        /// Session Id, to access the Keeper
+        /// </summary>
+        /// <value></value>
+        public string Id { get; set; }
+
+        /// <summary>
         /// Service to register any action when the session data has changed
         /// </summary>
         public event Action<string, object>? SessionDataChanged;
@@ -38,15 +44,15 @@ namespace BlazorSessionProvider.Sessions
         /// <param name="newSession">First Key/Value for the new session to be registered. If so, it will trigger the "OnSessionStart" event (if any)</param>
         public async void CreateNewSession(KeyValuePair<string, object>? newSession = null)
         {
-            string sessionId = await _bridge.SetNewSessionId();
-            _keeper.AddSession(sessionId, _config.TimeDelay);
+            Id = await _bridge.SetNewSessionId();
+            _keeper.AddSession(Id, _config.TimeDelay);
 
             if (newSession == null)
                 _config.OnSessionStart?.Invoke(null);
             else
             {
                 _config.OnSessionStart?.Invoke(newSession);
-                _keeper.SetSessionInData(sessionId, newSession.Value.Key, newSession.Value.Value);
+                _keeper.SetSessionInData(Id, newSession.Value.Key, newSession.Value.Value);
             }
         }
 
@@ -55,14 +61,18 @@ namespace BlazorSessionProvider.Sessions
         /// </summary>
         public async Task<string> HasSession()
         {
-            string id = await _bridge.GetSessionId();
-            if ((id == null) || !_keeper.HasSessionData(id))
-                return null;
+            if (string.IsNullOrEmpty(Id))
+            {
+                Id = await _bridge.GetSessionId();
 
-            if (_keeper.IsSessionExpired(id))
-                return "";
+                if ((Id == null) || !_keeper.HasSessionData(Id))
+                    return null;
 
-            return id;
+                if (_keeper.IsSessionExpired(Id))
+                    return "";
+            }
+
+            return Id;
         }
 
         /// <summary>
