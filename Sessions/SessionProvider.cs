@@ -62,15 +62,13 @@ namespace BlazorSessionProvider.Sessions
         public async Task<string> HasSession()
         {
             if (string.IsNullOrEmpty(Id))
-            {
                 Id = await _bridge.GetSessionId();
 
-                if ((Id == null) || !_keeper.HasSessionData(Id))
-                    return null;
+            if ((Id == null) || !_keeper.HasSessionData(Id))
+                return null;
 
-                if (_keeper.IsSessionExpired(Id))
-                    return "";
-            }
+            if (_keeper.IsSessionExpired(Id))
+                return "";
 
             return Id;
         }

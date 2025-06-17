@@ -9,7 +9,7 @@ BlazorSessionProvider is a Blazor Server library that handle sessions inside the
 ## Quick Install
 1. Install the package via NuGet:
   ```console
-  dotnet add package BlazorSessionProvider --version 1.0.2
+  dotnet add package BlazorSessionProvider --version 1.0.3
   ```
 
 2. Add the next code line in your Blazor project, on `Program.cs`:
@@ -28,9 +28,8 @@ BlazorSessionProvider is a Blazor Server library that handle sessions inside the
   - `config.SessionExpiredUrl` is the URL of the application to which it will redirect when the session has expired.
   - `config.SessionNotFoundUrl` is the URL of the application to which it will redirect when the application does not find the session key.
 
-3. Add these lines in your `_Imports.razor` file:
+3. Add this line in your page:
   ```csharp
-  @using BlazorSessionProvider.Sessions
   @inject ISessionProvider SESS
   ```
 
@@ -51,7 +50,7 @@ Make sure to put the render mode in "InteractiveServer" on each page you want to
   ```csharp
   var mySession = await SESS.GetSession<object>("Key");
   ```
-  If you want to delete the session, just add `true` in the `removeIt` property:
+  If you want to delete the key, just add `true` in the `removeIt` property:
   ```csharp
   var mySession = await SESS.GetSession<object>("Key", true);
   ```
@@ -62,7 +61,7 @@ Make sure to put the render mode in "InteractiveServer" on each page you want to
   ```
   This will NOT delete all the sessions stored in the application.
 
-You can't manage sessions in the method `OnInitialized` or `OnInitializedAsync`, because BlazorSessionProvider use JavaScriptInterop to get the key session in the browser.
+You can't manage sessions in the method `OnInitialized` or `OnInitializedAsync`, because BlazorSessionProvider use (by default) JavaScriptInterop to get the key session in the browser.
 
 ```csharp
 protected override async Task OnInitializedAsync()
