@@ -3,10 +3,10 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <PackageId>BlazorSessionProvider</PackageId>
-    <Version>1.0.3</Version>
+    <Version>1.0.4</Version>
     <Authors>Oscar Soto</Authors>
     <Description>A Blazor Server library that handle sessions inside the application (not in the browser)</Description>
-    <PackageReleaseNotes>Quick Fixes:\n - Fixed error that doesn't handle classes that inherits ISessionBridge \n - Added "Id" attribute to the SessionProvider, so it will just get the Id from the bridge if the Scoped is reloaded</PackageReleaseNotes>
+    <PackageReleaseNotes>Quick Fixes: Added "ExistKeyInSession" in the provider. To verify if a session exists in the dictonary</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/oscardsoto/BlazorSessionProvider</PackageProjectUrl>
 
 

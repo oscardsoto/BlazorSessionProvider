@@ -9,7 +9,7 @@ BlazorSessionProvider is a Blazor Server library that handle sessions inside the
 ## Quick Install
 1. Install the package via NuGet:
   ```console
-  dotnet add package BlazorSessionProvider --version 1.0.3
+  dotnet add package BlazorSessionProvider --version 1.0.4
   ```
 
 2. Add the next code line in your Blazor project, on `Program.cs`:
@@ -53,6 +53,13 @@ Make sure to put the render mode in "InteractiveServer" on each page you want to
   If you want to delete the key, just add `true` in the `removeIt` property:
   ```csharp
   var mySession = await SESS.GetSession<object>("Key", true);
+  ```
+  Or, if you just want to check if exists
+  ```csharp
+  if (await SESS.ExistKeyInSession("key"))
+  {
+    // Stuff here...
+  }
   ```
 
 3. If you want to delete the actual session manually, use:

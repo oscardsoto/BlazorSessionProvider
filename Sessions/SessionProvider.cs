@@ -192,5 +192,42 @@ namespace BlazorSessionProvider.Sessions
             _keeper.SetSessionInData(id, key, value);
             SessionDataChanged?.Invoke(key, value);
         }
+
+        /// <summary>
+        /// Returns true if the key exists in the session
+        /// </summary>
+        /// <param name="key">Identifier for the session value</param>
+        /// <returns></returns>
+        public async Task<bool> ExistKeyInSession(string key)
+        {
+            string id = await HasSession();
+            if (id == null)
+            {
+                if (!_sessionError)
+                {
+                    _sessionError = true;
+                    if (_config.HasNotFoundUrl)
+                        _navManager.NavigateTo(_config.SessionNotFoundUrl);
+                }
+                return false;
+            }
+            if (id.Equals(string.Empty))
+            {
+                if (!_sessionError)
+                {
+                    _sessionError = true;
+                    var _sess = _keeper.GetSessionData(await _bridge.GetSessionId());
+                    _sess.IgnoreExpired = true;
+                    _config.OnSessionExpired?.Invoke(_sess);
+                    if (_config.HasExpiredUrl)
+                        _navManager.NavigateTo(_config.SessionExpiredUrl);
+                }
+                return false;
+            }
+
+            _sessionError = false;
+            var sess = _keeper.GetSessionData(id);
+            return sess.Exists(key);
+        }
     }
 }

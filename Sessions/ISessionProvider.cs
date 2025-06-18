@@ -37,6 +37,13 @@
         void SetSession(string key, object value);
 
         /// <summary>
+        /// Returns true if the key exists in the session
+        /// </summary>
+        /// <param name="key">Identifier for the session value</param>
+        /// <returns></returns>
+        Task<bool> ExistKeyInSession(string key);
+
+        /// <summary>
         /// Delete the actual session
         /// </summary>
         void RemoveSession();
