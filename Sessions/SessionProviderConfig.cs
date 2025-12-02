@@ -11,7 +11,7 @@
         public TimeSpan TimeDelay { get; set; } = new(2, 0, 0);
 
         /// <summary>
-        /// Key value in localStorage for the session Identifier
+        /// Key value in cookies for the session Identifier
         /// </summary>
         public string KeyId { get; set; } = "blky";
 
@@ -48,22 +48,40 @@
         }
 
         /// <summary>
+        /// True if the SessionProvider retrieves the session ID from the SessionBridge when starting the service (false by default). Set this value to false if your SessionBridge does not manage the session ID at the beginning of the application.
+        /// </summary>
+        /// <value></value>
+        public bool SyncProviderOnStart { get; set; } = false;
+
+        /// <summary>
+        /// True to make the SessionBridge use HttpOnly cookies (false by default). If true, make sure to call the SessionBridge methods when IHttpContext is avaiable.
+        /// </summary>
+        /// <value></value>
+        public bool UseHttpOnlyCookies { get; set; } = false;
+
+        /// <summary>
         /// Event when the session has started
         /// </summary>
         /// <returns></returns>
-        public Action<object> OnSessionStart { get; set; } = (value) => {};
+        public event Action<SessionState>? OnSessionStart;
 
         /// <summary>
         /// Event when the session has ended
         /// </summary>
         /// <returns></returns>
-        public Action<SessionState> OnSessionEnd { get; set; } = (value) => {};
+        public event Action<SessionState>? OnSessionEnd;
 
         /// <summary>
         /// Event when the session has expired
         /// </summary>
         /// <returns></returns>
-        public Action<SessionState> OnSessionExpired { get; set; } = (value) => {};
+        public event Action<SessionState>? OnSessionExpired;
+
+        internal void TriggerEventStart(SessionState sessionStarted) => OnSessionStart?.Invoke(sessionStarted);
+
+        internal void TriggerEventEnd(SessionState sessionEnded) => OnSessionEnd?.Invoke(sessionEnded);
+
+        internal void TriggerEventExpired(SessionState sessionExpired) => OnSessionExpired?.Invoke(sessionExpired);
 
         /// <summary>
         /// Configuration for Session Provider.

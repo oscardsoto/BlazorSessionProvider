@@ -1,0 +1,134 @@
+@using BlazorSessionProvider.Sessions
+
+@inject ISessionProvider Provider
+@typeparam TKey
+@implements IAsyncDisposable
+
+@if (loading)
+{
+    @if (Loading is not null)
+    {
+        @Loading
+    }
+    else
+    {
+        <span>⏳ Loading...</span>
+    }
+}
+else if (isValid)
+{
+    if (Valid is not null)
+    {
+        @Valid.Invoke(sessValue)
+    }
+}
+else
+{
+    if (Invalid is not null)
+    {
+        @Invalid.Invoke(sessValue)
+    }
+}
+
+@code
+{
+    /// <summary>
+    /// Key session to get
+    /// </summary>
+    [Parameter]
+    public string SessionKey { get; set; } = "";
+
+    /// <summary>
+    /// Additional validation for the value in session. Use this function if you need your value to validate a certain criteria
+    /// </summary>
+    [Parameter]
+    public Func<TKey?, Task<bool>>? IsSessionValid { get; set; }
+
+    /// <summary>
+    /// True if the session value will be updated after a value was changed. True by default
+    /// </summary>
+    [Parameter]
+    public bool Update { get; set; } = true;
+
+    /// <summary>
+    /// Fragment if the session value is valid. Implements that value inside this after render
+    /// </summary>
+    [Parameter]
+    public RenderFragment<TKey?>? Valid { get; set; }
+
+    /// <summary>
+    /// Fragment if the session value is not valid
+    /// </summary>
+    [Parameter]
+    public RenderFragment<TKey?>? Invalid { get; set; }
+
+    /// <summary>
+    /// Component that renders when the SessionView is waiting for validating the data in session
+    /// </summary>
+    [Parameter]
+    public RenderFragment? Loading { get; set; }
+
+    bool loading = true;
+    bool isValid = false;
+    TKey? sessValue = default;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Provider.SubscribeToKeeper(UpdateValues);
+        await LoadSessionAsync();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrEmpty(SessionKey))
+            throw new ArgumentNullException(nameof(SessionKey));
+
+        if (typeof(TKey) == typeof(object))
+            throw new InvalidCastException($"{nameof(TKey)} is not specified. {nameof(TKey)} cannot be \"object\"");
+    }
+
+    private async Task LoadSessionAsync()
+    {
+        loading = true;
+        if (await Provider.ExistKeyInSession(SessionKey))
+        {
+            sessValue   = await Provider.GetSession<TKey>(SessionKey);
+            isValid     = (IsSessionValid != null) ? await IsSessionValid.Invoke(sessValue) : true;
+            loading     = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+        sessValue = default;
+        loading = isValid = false;
+        await InvokeAsync(StateHasChanged);
+        return;
+    }
+
+    private async void UpdateValues(string key, object value)
+    {
+        if (!key.Equals(SessionKey) || !Update)
+            return;
+
+        if (!typeof(TKey).Name.Equals(value?.GetType().Name ?? "Null"))
+            throw new InvalidCastException($"Cannot get \"{key}\" correctly. Expected: {typeof(TKey).Name}. Received: {value?.GetType().Name ?? "Null"}");
+
+        await LoadSessionAsync();
+    }
+
+    /// <inheritdoc/>
+    public async ValueTask DisposeAsync()
+    {
+        await DisposeAsyncCore().ConfigureAwait(false);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Dispose any resource the SessionView have
+    /// </summary>
+    /// <returns></returns>
+    protected virtual async ValueTask DisposeAsyncCore()
+    {
+        if (Provider != null)
+            await Provider.UnsubscribeToKeeper(UpdateValues);
+    }
+}

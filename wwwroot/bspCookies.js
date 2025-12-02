@@ -1,0 +1,1 @@
+export function getCookiesValue(){return document.cookie;}export function removeCookie(key){document.cookie = key + "=";}export function addCookie(key, value){document.cookie = key + "=" + value;}

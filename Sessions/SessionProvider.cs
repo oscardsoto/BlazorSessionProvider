@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Options;
 using Microsoft.JSInterop;
+using System.Timers;
 
 namespace BlazorSessionProvider.Sessions
 {
@@ -15,50 +16,63 @@ namespace BlazorSessionProvider.Sessions
         private readonly SessionProviderConfig _config;
         private bool _sessionError = false;
 
-        /// <summary>
-        /// Session Id, to access the Keeper
-        /// </summary>
-        /// <value></value>
-        public string Id { get; set; }
-
-        /// <summary>
-        /// Service to register any action when the session data has changed
-        /// </summary>
-        public event Action<string, object>? SessionDataChanged;
+        /// <inheritdoc/>
+        public string Id { get; set; } = null;
 
         /// <summary>
         /// Scoped that provide the session for the user
         /// </summary>
+        /// <param name="bridge"></param>
+        /// <param name="keeper"></param>
+        /// <param name="navigation"></param>
+        /// <param name="options"></param>
         public SessionProvider(ISessionKeeper keeper, ISessionBridge bridge, NavigationManager navigation, IOptions<SessionProviderConfig> options)
         {
-            _keeper     = keeper;
-            _bridge     = bridge;
+            _keeper = keeper;
+            _bridge = bridge;
             _navManager = navigation;
-            _config     = options.Value;
+            _config = options.Value;
+
+            if (_config.SyncProviderOnStart || _config.UseHttpOnlyCookies)
+                _ = HasSession();
         }
 
+        /// <inheritdoc/>
+        public async Task SubscribeToKeeper(Action<string, object> action)
+        {
+            string id = await HasSession();
+            if (string.IsNullOrEmpty(id))
+                return;
+
+            _keeper.Subscribe(id, action);
+        }
+
+        /// <inheritdoc/>
+        public async Task UnsubscribeToKeeper(Action<string, object> action)
+        {
+            string id = await HasSession();
+            if (string.IsNullOrEmpty(id))
+                return;
+
+            _keeper.Unsubscribe(id, action);
+        }
         
-        /// <summary>
-        /// Creates a new session with a unique Guid
-        /// </summary>
-        /// <param name="newSession">First Key/Value for the new session to be registered. If so, it will trigger the "OnSessionStart" event (if any)</param>
-        public async void CreateNewSession(KeyValuePair<string, object>? newSession = null)
+        /// <inheritdoc/>
+        public async Task CreateNewSession(KeyValuePair<string, object>? newSession = null)
         {
             Id = await _bridge.SetNewSessionId();
             _keeper.AddSession(Id, _config.TimeDelay);
 
             if (newSession == null)
-                _config.OnSessionStart?.Invoke(null);
-            else
             {
-                _config.OnSessionStart?.Invoke(newSession);
-                _keeper.SetSessionInData(Id, newSession.Value.Key, newSession.Value.Value);
+                _config.TriggerEventStart(new(TimeSpan.FromSeconds(1)));
+                return;
             }
+            var data = _keeper.SetSessionInData(Id, newSession!.Value.Key, newSession.Value.Value);
+            _config.TriggerEventStart(data);
         }
 
-        /// <summary>
-        /// Async method that returns the Guid if the session exists. If is expired, return an empty string. If does not exist in the bridge or in the keeper, return null.
-        /// </summary>
+        /// <inheritdoc/>
         public async Task<string> HasSession()
         {
             if (string.IsNullOrEmpty(Id))
@@ -73,38 +87,37 @@ namespace BlazorSessionProvider.Sessions
             return Id;
         }
 
-        /// <summary>
-        /// Async method that returns the session value as a <typeparamref name="T"/>. Return the default value if the session don't exist
-        /// </summary>
-        /// <param name="key">Key for the session</param>
-        /// <param name="removeIt">True if the value has to be deleted</param>
-        /// <typeparam name="T">Type of object to be returned</typeparam>
-        public async Task<T?> GetSession<T>(string key, bool removeIt = false)
+        async Task<string> ValidateIdReference()
         {
             string id = await HasSession();
-            if (id == null)
-            {
+
+            if (string.IsNullOrEmpty(id))
                 if (!_sessionError)
                 {
                     _sessionError = true;
-                    if (_config.HasNotFoundUrl)
+                    if (id is null && _config.HasNotFoundUrl)
                         _navManager.NavigateTo(_config.SessionNotFoundUrl);
+                        
+                    else if (id == string.Empty)
+                    {
+                        var session = _keeper.GetSessionData(await _bridge.GetSessionId());
+                        session.IgnoreExpired = true;
+                        _config.TriggerEventExpired(session);
+
+                        if (_config.HasExpiredUrl)
+                            _navManager.NavigateTo(_config.SessionExpiredUrl);
+                    }
                 }
+
+            return id;
+        }
+
+        /// <inheritdoc/>
+        public async Task<T?> GetSession<T>(string key, bool removeIt = false)
+        {
+            string id = await ValidateIdReference();
+            if (string.IsNullOrEmpty(id))
                 return default;
-            }
-            if (id.Equals(string.Empty))
-            {
-                if (!_sessionError)
-                {
-                    _sessionError = true;
-                    var _sess = _keeper.GetSessionData(await _bridge.GetSessionId());
-                    _sess.IgnoreExpired = true;
-                    _config.OnSessionExpired?.Invoke(_sess);
-                    if (_config.HasExpiredUrl)
-                        _navManager.NavigateTo(_config.SessionExpiredUrl);
-                }
-                return default;
-            }
 
             _sessionError = false;
             var sess = _keeper.GetSessionData(id);
@@ -120,110 +133,37 @@ namespace BlazorSessionProvider.Sessions
             throw new InvalidCastException($"Cannot get \"{key}\" correctly. Expected: {typeof(T).Name}. Received: {objInSess?.GetType().Name ?? "Null"}");
         }
 
-        /// <summary>
-        /// Delete the actual session
-        /// </summary>
-        public async void RemoveSession()
+        /// <inheritdoc/>
+        public async Task RemoveSession()
         {
-            string id = await HasSession();
-            if (id == null)
-            {
-                if (!_sessionError)
-                {
-                    _sessionError = true;
-                    if (_config.HasNotFoundUrl)
-                        _navManager.NavigateTo(_config.SessionNotFoundUrl);
-                }
+            string id = await ValidateIdReference();
+            if (string.IsNullOrEmpty(id))
                 return;
-            }
-            if (id.Equals(string.Empty))
-            {
-                if (!_sessionError)
-                {
-                    _sessionError = true;
-                    var _sess = _keeper.GetSessionData(await _bridge.GetSessionId());
-                    _sess.IgnoreExpired = true;
-                    _config.OnSessionExpired?.Invoke(_sess);
-                    if (_config.HasExpiredUrl)
-                        _navManager.NavigateTo(_config.SessionExpiredUrl);
-                }
-                return;
-            }
 
             _sessionError = false;
-            _config.OnSessionEnd.Invoke(_keeper.GetSessionData(id));
+            _config.TriggerEventEnd(_keeper.GetSessionData(id));
             _keeper.RemoveSession(id);
             await _bridge.RemoveSessionId();
         }
 
-        /// <summary>
-        /// Set/Update a value inside the session
-        /// </summary>
-        /// <param name="key">Identifier for the session value</param>
-        /// <param name="value">Value for that id</param>
-        public async void SetSession(string key, object value)
+        /// <inheritdoc/>
+        public async Task SetSession(string key, object value)
         {
-            string id = await HasSession();
-            if (id == null)
-            {
-                if (!_sessionError)
-                {
-                    _sessionError = true;
-                    if (_config.HasNotFoundUrl)
-                        _navManager.NavigateTo(_config.SessionNotFoundUrl);
-                }
+            string id = await ValidateIdReference();
+            if (string.IsNullOrEmpty(id))
                 return;
-            }
-            if (id.Equals(string.Empty))
-            {
-                if (!_sessionError)
-                {
-                    _sessionError = true;
-                    var _sess = _keeper.GetSessionData(await _bridge.GetSessionId());
-                    _sess.IgnoreExpired = true;
-                    _config.OnSessionExpired?.Invoke(_sess);
-                    if (_config.HasExpiredUrl)
-                        _navManager.NavigateTo(_config.SessionExpiredUrl);
-                }
-                return;
-            }
 
             _sessionError = false;
             _keeper.SetSessionInData(id, key, value);
-            SessionDataChanged?.Invoke(key, value);
+            _keeper.NotifyAllClients(id, key, value);
         }
 
-        /// <summary>
-        /// Returns true if the key exists in the session
-        /// </summary>
-        /// <param name="key">Identifier for the session value</param>
-        /// <returns></returns>
+        /// <inheritdoc/>
         public async Task<bool> ExistKeyInSession(string key)
         {
-            string id = await HasSession();
-            if (id == null)
-            {
-                if (!_sessionError)
-                {
-                    _sessionError = true;
-                    if (_config.HasNotFoundUrl)
-                        _navManager.NavigateTo(_config.SessionNotFoundUrl);
-                }
+            string id = await ValidateIdReference();
+            if (string.IsNullOrEmpty(id))
                 return false;
-            }
-            if (id.Equals(string.Empty))
-            {
-                if (!_sessionError)
-                {
-                    _sessionError = true;
-                    var _sess = _keeper.GetSessionData(await _bridge.GetSessionId());
-                    _sess.IgnoreExpired = true;
-                    _config.OnSessionExpired?.Invoke(_sess);
-                    if (_config.HasExpiredUrl)
-                        _navManager.NavigateTo(_config.SessionExpiredUrl);
-                }
-                return false;
-            }
 
             _sessionError = false;
             var sess = _keeper.GetSessionData(id);

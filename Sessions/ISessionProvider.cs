@@ -6,11 +6,6 @@
     public interface ISessionProvider
     {
         /// <summary>
-        /// Service to register any action when the session data has changed
-        /// </summary>
-        event Action<string, object> SessionDataChanged;
-
-        /// <summary>
         /// Session Id, to access the Keeper
         /// </summary>
         string Id { get; set; }
@@ -19,7 +14,7 @@
         /// Creates a new session with a unique Guid
         /// </summary>
         /// <param name="newSession">First Key/Value for the new session to be registered. If so, it will trigger the "OnSessionStart" event (if any)</param>
-        void CreateNewSession(KeyValuePair<string, object>? newSession = null);
+        Task CreateNewSession(KeyValuePair<string, object>? newSession = null);
 
         /// <summary>
         /// Async method that returns the session value as a <typeparamref name="T"/>. Return the default value if the session don't exist
@@ -34,7 +29,7 @@
         /// </summary>
         /// <param name="key">Identifier for the session value</param>
         /// <param name="value">Value for that id</param>
-        void SetSession(string key, object value);
+        Task SetSession(string key, object value);
 
         /// <summary>
         /// Returns true if the key exists in the session
@@ -46,11 +41,25 @@
         /// <summary>
         /// Delete the actual session
         /// </summary>
-        void RemoveSession();
+        Task RemoveSession();
 
         /// <summary>
-        /// Async method that returns the Guid if the session exists. If does not exist in the dictionary, return an empty string. If does not exist in "localStorage", return null.
+        /// Async method that returns the Guid if the session exists. If does not exist in the dictionary, return an empty string. If does not exist in cookies, return null.
         /// </summary>
         Task<string> HasSession();
+
+        /// <summary>
+        /// Register a function to the keeper to trigger when a sesison value is changed
+        /// </summary>
+        /// <param name="action">Action object to register</param>
+        /// <returns></returns>
+        Task SubscribeToKeeper(Action<string, object> action);
+
+        /// <summary>
+        /// Removes the function registered from the keeper
+        /// </summary>
+        /// <param name="action">Action object to remove</param>
+        /// <returns></returns>
+        Task UnsubscribeToKeeper(Action<string, object> action);
     }
 }

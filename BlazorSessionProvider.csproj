@@ -3,10 +3,10 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <PackageId>BlazorSessionProvider</PackageId>
-    <Version>1.0.4</Version>
+    <Version>1.1.0</Version>
     <Authors>Oscar Soto</Authors>
     <Description>A Blazor Server library that handle sessions inside the application (not in the browser)</Description>
-    <PackageReleaseNotes>Quick Fixes: Added "ExistKeyInSession" in the provider. To verify if a session exists in the dictonary</PackageReleaseNotes>
+    <PackageReleaseNotes>Check all release notes at: https://github.com/oscardsoto/BlazorSessionProvider/releases</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/oscardsoto/BlazorSessionProvider</PackageProjectUrl>
 
 
@@ -22,6 +22,10 @@
     <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
 
   <ItemGroup>
     <SupportedPlatform Include="browser" />
