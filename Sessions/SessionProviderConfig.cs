@@ -78,7 +78,7 @@
         public event Action<SessionState>? OnSessionExpired;
 
         /// <summary>
-        /// Interval used by the background cleanup process that removes expired sessions.
+        /// Interval used by the background cleanup process that removes expired sessions. (5 minutes by default. It setted to 0, it will change to default)
         /// </summary>
         public TimeSpan CleanupInterval { get; set; } = TimeSpan.FromMinutes(5);
 

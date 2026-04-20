@@ -9,6 +9,7 @@
 - 🔒 Data **never travels to the client**, preventing XSS
 - 🧠 Full server-side control (you can invalidate, renew, or redirect sessions)
 - 🔁 The server decides when a session expires, based on the configured settings
+- 🕒 | **NEW** | Automatic cleanup of expired sessions
 - ⚙️ Simple configuration
 - ✅ Easy API for handling session data
 - 📡 Native integration with `SignalR` (keeps the session alive through the connection)

@@ -142,7 +142,6 @@ namespace BlazorSessionProvider.Sessions
 
             _sessionError = false;
             _config.TriggerEventEnd(_keeper.GetSessionData(id));
-            _keeper.ClearSubscriptions(id);
             _keeper.RemoveSession(id);
             await _bridge.RemoveSessionId();
         }

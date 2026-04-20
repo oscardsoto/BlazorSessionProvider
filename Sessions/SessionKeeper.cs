@@ -56,7 +56,7 @@ namespace BlazorSessionProvider.Sessions
         public void RemoveSession(string idSess)
         {
             Sessions.TryRemove(idSess, out _);
-            Events.TryRemove(idSess, out _);
+            ClearSubscriptions(idSess);
         }
 
         /// <summary>
@@ -81,9 +81,6 @@ namespace BlazorSessionProvider.Sessions
             SessionState? sesdict;
             if (!Sessions.TryGetValue(idSess, out sesdict) || sesdict is null)
                 return true;
-
-            if (!sesdict.HasExpired())
-                TouchSessionIfNeeded(sesdict);
 
             return sesdict.HasExpired();
         }
@@ -171,7 +168,7 @@ namespace BlazorSessionProvider.Sessions
                 session.RefreshLimit();
         }
 
-        private void CleanupExpiredSessions(object? _)
+        private void CleanupExpiredSessions(object? obj)
         {
             foreach (var kvp in Sessions)
             {
