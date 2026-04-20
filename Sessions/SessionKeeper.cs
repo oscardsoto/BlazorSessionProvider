@@ -1,20 +1,34 @@
 ﻿using System.Collections.Concurrent;
+using System.Collections.Immutable;
+using Microsoft.Extensions.Options;
 
 namespace BlazorSessionProvider.Sessions
 {
     /// <summary>
     /// Singleton that keeps all sessions on a ConcurrentDictionary
     /// </summary>
-    public class SessionKeeper : ISessionKeeper
+    public class SessionKeeper : ISessionKeeper, IDisposable
     {
         private ConcurrentDictionary<string, SessionState> Sessions { get; set; }
 
-        private ConcurrentDictionary<string, List<Action<string, object>>> Events = new();
+        private ConcurrentDictionary<string, ImmutableArray<Action<string, object>>> Events = new();
+        private readonly SessionProviderConfig _config;
+        private readonly Timer _cleanupTimer;
 
         /// <summary>
         /// Singleton that keeps all sessions on a ConcurrentDictionary
         /// </summary>
-        public SessionKeeper() => Sessions = new();
+        public SessionKeeper(IOptions<SessionProviderConfig> options)
+        {
+            _config = options.Value;
+            Sessions = new();
+
+            var interval = _config.CleanupInterval <= TimeSpan.Zero
+                ? TimeSpan.FromMinutes(5)
+                : _config.CleanupInterval;
+
+            _cleanupTimer = new Timer(CleanupExpiredSessions, null, interval, interval);
+        }
 
         /// <summary>
         /// Adds a new session in the dictionary
@@ -31,6 +45,7 @@ namespace BlazorSessionProvider.Sessions
         {
             SessionState? sesdict;
             Sessions.TryGetValue(idSess, out sesdict);
+            TouchSessionIfNeeded(sesdict);
             return sesdict;
         }
 
@@ -38,13 +53,24 @@ namespace BlazorSessionProvider.Sessions
         /// Deletes the session from the dictionary
         /// </summary>
         /// <param name="idSess">Guid for the session</param>
-        public void RemoveSession(string idSess) => Sessions.TryRemove(idSess, out _);
+        public void RemoveSession(string idSess)
+        {
+            Sessions.TryRemove(idSess, out _);
+            Events.TryRemove(idSess, out _);
+        }
 
         /// <summary>
         /// Return true if the session exist in the dictionary
         /// </summary>
         /// <param name="idSess">Guid for the session</param>
-        public bool HasSessionData(string idSess) => Sessions.TryGetValue(idSess, out _);
+        public bool HasSessionData(string idSess)
+        {
+            if (!Sessions.TryGetValue(idSess, out var session))
+                return false;
+
+            TouchSessionIfNeeded(session);
+            return true;
+        }
 
         /// <summary>
         /// Return true if the session has expired
@@ -53,7 +79,12 @@ namespace BlazorSessionProvider.Sessions
         public bool IsSessionExpired(string idSess)
         {
             SessionState? sesdict;
-            Sessions.TryGetValue(idSess, out sesdict);
+            if (!Sessions.TryGetValue(idSess, out sesdict) || sesdict is null)
+                return true;
+
+            if (!sesdict.HasExpired())
+                TouchSessionIfNeeded(sesdict);
+
             return sesdict.HasExpired();
         }
 
@@ -67,6 +98,7 @@ namespace BlazorSessionProvider.Sessions
         {
             SessionState? sesdict;
             Sessions.TryGetValue(idSess, out sesdict);
+            TouchSessionIfNeeded(sesdict);
             sesdict?.Set(key, value);
             return sesdict;
         }
@@ -78,15 +110,11 @@ namespace BlazorSessionProvider.Sessions
         /// <param name="_event">Event that will receive the key and value</param>
         public void Subscribe(string idSess, Action<string, object> _event)
         {
-            if (!Events.ContainsKey(idSess))
-            {
-                Events.TryAdd(idSess, new List<Action<string, object>> { _event });
-                return;
-            }
-
-            List<Action<string, object>>? events;
-            Events.TryGetValue(idSess, out events);
-            events?.Add(_event);
+            Events.AddOrUpdate(
+                idSess,
+                _ => ImmutableArray.Create(_event),
+                (_, current) => current.Contains(_event) ? current : current.Add(_event)
+            );
         }
 
         /// <summary>
@@ -96,13 +124,21 @@ namespace BlazorSessionProvider.Sessions
         /// <param name="_event">Event that will receive the key and value</param>
         public void Unsubscribe(string idSess, Action<string, object> _event)
         {
-            if (!Events.ContainsKey(idSess))
-                return;
+            while (Events.TryGetValue(idSess, out var handlers))
+            {
+                var idx = handlers.IndexOf(_event);
+                if (idx < 0)
+                    return;
 
-            List<Action<string, object>>? events;
-            Events.TryGetValue(idSess, out events);
-            if ((events != null) && events.Contains(_event))
-                events.Remove(_event);
+                var updated = handlers.RemoveAt(idx);
+                if (updated.IsDefaultOrEmpty)
+                {
+                    if (Events.TryRemove(new KeyValuePair<string, ImmutableArray<Action<string, object>>>(idSess, handlers)))
+                        return;
+                }
+                else if (Events.TryUpdate(idSess, updated, handlers))
+                    return;
+            }
         }
 
         /// <summary>
@@ -113,14 +149,11 @@ namespace BlazorSessionProvider.Sessions
         /// <param name="value">Session value</param>
         public void NotifyAllClients(string idSess, string key, object value)
         {
-            if (!Events.ContainsKey(idSess))
+            if (!Events.TryGetValue(idSess, out var handlers))
                 return;
 
-            List<Action<string, object>>? events;
-            Events.TryGetValue(idSess, out events);
-            if (events != null)
-                foreach (var evnt in events)
-                    evnt.Invoke(key, value);
+            foreach (var evnt in handlers)
+                evnt.Invoke(key, value);
         }
 
         /// <summary>
@@ -128,5 +161,32 @@ namespace BlazorSessionProvider.Sessions
         /// </summary>
         /// <param name="idSess">Guid for the session</param>
         public void ClearSubscriptions(string idSess) => Events.TryRemove(idSess, out _);
+
+        private void TouchSessionIfNeeded(SessionState? session)
+        {
+            if (session is null)
+                return;
+
+            if (_config.UseRelativeTtl)
+                session.RefreshLimit();
+        }
+
+        private void CleanupExpiredSessions(object? _)
+        {
+            foreach (var kvp in Sessions)
+            {
+                if (!kvp.Value.HasExpired())
+                    continue;
+
+                if (!Sessions.TryRemove(new KeyValuePair<string, SessionState>(kvp.Key, kvp.Value)))
+                    continue;
+
+                kvp.Value.IgnoreExpired = true;
+                _config.TriggerEventExpired(kvp.Value);
+                Events.TryRemove(kvp.Key, out _);
+            }
+        }
+
+        public void Dispose() => _cleanupTimer.Dispose();
     }
 }

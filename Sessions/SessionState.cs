@@ -8,6 +8,7 @@ namespace BlazorSessionProvider.Sessions
     public class SessionState
     {
         private ConcurrentDictionary<string, object> _table { get; set; }
+        private readonly TimeSpan _delay;
 
         /// <summary>
         /// Session begin's time
@@ -30,6 +31,7 @@ namespace BlazorSessionProvider.Sessions
         public SessionState(TimeSpan delay)
         {
             _table      = new();
+            _delay      = delay;
             SessionTime = DateTime.Now;
             SessionLimit = SessionTime.Add(delay);
         }
@@ -38,6 +40,17 @@ namespace BlazorSessionProvider.Sessions
         /// Return true if the session has expired
         /// </summary>
         public bool HasExpired() => SessionLimit < DateTime.Now;
+
+        /// <summary>
+        /// Refreshes the expiration limit using the original session delay.
+        /// </summary>
+        public void RefreshLimit()
+        {
+            if (HasExpired() && !IgnoreExpired)
+                return;
+
+            SessionLimit = DateTime.Now.Add(_delay);
+        }
 
         /// <summary>
         /// Return true if the session has the key's id

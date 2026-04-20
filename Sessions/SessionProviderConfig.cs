@@ -77,6 +77,17 @@
         /// <returns></returns>
         public event Action<SessionState>? OnSessionExpired;
 
+        /// <summary>
+        /// Interval used by the background cleanup process that removes expired sessions.
+        /// </summary>
+        public TimeSpan CleanupInterval { get; set; } = TimeSpan.FromMinutes(5);
+
+        /// <summary>
+        /// True to use a relative TTL (sliding expiration). When enabled, every valid session access refreshes the expiration limit.
+        /// False to use an absolute TTL (fixed expiration from creation time).
+        /// </summary>
+        public bool UseRelativeTtl { get; set; } = false;
+
         internal void TriggerEventStart(SessionState sessionStarted) => OnSessionStart?.Invoke(sessionStarted);
 
         internal void TriggerEventEnd(SessionState sessionEnded) => OnSessionEnd?.Invoke(sessionEnded);
